@@ -1,0 +1,98 @@
+---
+title: "Reproducible Research Course Project 1"
+author: "Jason Parise"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+##Setup
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Loading and preprocessing the data
+```{r Loading and preprocessing the data, echo=TRUE}
+dlurl <- 'http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip'
+download.file(dlurl,destfile='repdata%2Fdata%2Factivity.zip',mode='wb')
+unzip('repdata%2Fdata%2Factivity.zip')
+data <- read.csv("activity.csv")
+```
+
+##What is mean total number of steps taken per day? What are the mean and median daily steps taken?
+```{r What is mean total number of steps taken per day, echo=TRUE}
+DailySteps <- aggregate(steps ~ date, data, sum)
+hist(DailySteps$steps, main = paste("Total Steps Per Day"), col="blue",xlab="Number of Steps")
+
+MeanDailySteps <- mean(DailySteps$steps)
+MeanDailySteps
+
+MedianDailySteps <- median(DailySteps$steps)
+MedianDailySteps
+```
+
+##What is the average daily activity pattern? What is the maximum interval?
+```{r What is the average daily activity pattern, echo=TRUE}
+StepInterval <- aggregate(steps ~ interval, data, mean)
+plot(StepInterval$interval,StepInterval$steps, type="l", xlab="Interval", ylab="Number of Steps",main="Average Number of Steps by Interval")
+
+MaxInterval <- StepInterval[which.max(StepInterval$steps),1]
+MaxInterval
+```
+
+##Imputing missing values, determining the total number of missing values.
+```{r Total number of missing values, echo=TRUE}
+TotalNA <- sum(is.na(data))
+TotalNA
+```
+
+##Imputing missing values, replacing missing values with averaged values and creating a new dataset with them.
+```{r Replacing missing values, echo=TRUE}
+AveSteps <- aggregate(steps ~ interval, data, mean)
+TotalNA <- numeric()
+for (i in 1:nrow(data)) 
+    {
+          obs <- data[i, ]
+          if (is.na(obs$steps)) 
+    {
+            steps <- subset(AveSteps, interval == obs$interval)$steps
+    } 
+          else 
+    {
+          steps <- obs$steps
+    }
+    TotalNA <- c(TotalNA, steps)
+}
+
+NewData <- data
+NewData$steps <- TotalNA
+```
+
+##Imputing missing values, and create a histogram with replaced missing values.
+```{r Imputed histogram, echo=TRUE}
+NewTotalSteps <- aggregate(steps ~ date, data = NewData, sum, na.rm = TRUE)
+hist(NewTotalSteps$steps, main = paste("New Total Steps Each Day"), col="blue", xlab="Number of Steps")
+```
+
+##Imputing missing values, calculate the mean and median total number of steps.
+```{r Mean and median of imputed values, echo=TRUE}
+NewMeanTotal <- mean(NewTotalSteps$steps)
+NewMeanTotal
+NewMedianTotal <- median(NewTotalSteps$steps)
+NewMedianTotal
+```
+
+##Imputing missing values, is there a difference between the means and medians?
+```{r Difference between mean and median values after imputation, echo=TRUE}
+MeanDailySteps - NewMeanTotal
+MedianDailySteps - NewMedianTotal
+```
+
+##Imputing missing values, is there a difference between activity patterns between weekdays and weekends?
+```{r Difference between weekday and weekend values, echo=TRUE}
+weekdays <- c("Monday", "Tuesday", "Wednesday", "Thursday", 
+              "Friday")
+NewData$dow = as.factor(ifelse(is.element(weekdays(as.Date(NewData$date)),weekdays), "Weekday", "Weekend"))
+NewTotalSteps <- aggregate(steps ~ interval + dow, NewData, mean)
+library(lattice)
+xyplot(NewTotalSteps$steps ~ NewTotalSteps$interval|NewTotalSteps$dow, main="Average Steps per Day",xlab="Interval", ylab="Steps",layout=c(1,2), type="l")
+```
